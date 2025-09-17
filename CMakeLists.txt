@@ -104,27 +104,27 @@ configure_package_config_file(
     INSTALL_DESTINATION "lib/cmake/FFmpeg"
 )
 
-# 安装配置（可选）
-if(NOT CMAKE_SKIP_INSTALL_RULES)
-    install(DIRECTORY "${FFMPEG_INCLUDE_DIR}/" 
-        DESTINATION "include"
-        FILES_MATCHING PATTERN "*.h"
-    )
+# # 安装配置（可选）
+# if(NOT CMAKE_SKIP_INSTALL_RULES)
+#     install(DIRECTORY "${FFMPEG_INCLUDE_DIR}/" 
+#         DESTINATION "include"
+#         FILES_MATCHING PATTERN "*.h"
+#     )
     
-    install(DIRECTORY "${FFMPEG_LIB_DIR}/"
-        DESTINATION "lib"
-        FILES_MATCHING 
-        PATTERN "*.dylib"
-        PATTERN "*.dll" 
-        PATTERN "*.lib"
-    )
+#     install(DIRECTORY "${FFMPEG_LIB_DIR}/"
+#         DESTINATION "lib"
+#         FILES_MATCHING 
+#         PATTERN "*.dylib"
+#         PATTERN "*.dll" 
+#         PATTERN "*.lib"
+#     )
     
-    install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/FFmpegConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/FFmpegConfigVersion.cmake"
-        DESTINATION "lib/cmake/FFmpeg"
-    )
-endif()
+#     install(FILES
+#         "${CMAKE_CURRENT_BINARY_DIR}/FFmpegConfig.cmake"
+#         "${CMAKE_CURRENT_BINARY_DIR}/FFmpegConfigVersion.cmake"
+#         DESTINATION "lib/cmake/FFmpeg"
+#     )
+# endif()
 
 # 提供使用信息
 message(STATUS "FFmpeg libraries configured for platform: ${CMAKE_SYSTEM_NAME}")
