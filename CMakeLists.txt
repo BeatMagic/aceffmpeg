@@ -16,7 +16,7 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(DLL_SUFFIX ".dll")
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # 检测macOS架构
-    if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
         set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/arm64")
     else()
         set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/x86_64")
