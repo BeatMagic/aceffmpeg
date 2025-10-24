@@ -10,11 +10,11 @@ project(aceffmpeg
 set(FFMPEG_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/include")
 
 # 检测平台和架构
-if(WIN32)
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
     set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/win")
     set(LIB_SUFFIX ".lib")
     set(DLL_SUFFIX ".dll")
-elseif(APPLE)
+elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # 检测macOS架构
     if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
         set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/arm64")
