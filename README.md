@@ -6,7 +6,22 @@
 编译参数：
 win:
 ```
-./configure --disable-doc --enable-cross-compile --disable-x86asm --arch=x86_64 --enable-gpl --enable-version3 --enable-shared --disable-static --disable-programs --prefix=ffmpeglib  --toolchain=msvc --disable-network --disable-debug --enable-libmp3lame
+./configure \
+'--disable-doc' \
+'--arch=x86_64' \
+'--enable-gpl' \
+'--enable-version3' \
+'--disable-static' \
+'--enable-shared' \
+'--disable-static' \
+'--disable-programs' \
+'--prefix=../ffmpeglib' \
+'--enable-network' \
+'--disable-debug' \
+'--disable-x86asm' \
+'--disable-asm' \
+'--enable-libmp3lame'
+
 ```
 mac:
 ```
@@ -20,12 +35,13 @@ mac:
 '--target-os=darwin' \
 '--arch=x86_64' \
 '--disable-programs' \
-'--disable-network' \
+'--enable-network' \
 '--disable-debug' \
-'--prefix=./ffmpeglib' \
+'--enable-videotoolbox' \
+'--prefix=../ffmpeglib' \
 '--install-name-dir=@rpath' \
-'--extra-cflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -I./libmp3lame/include' \
-'--extra-ldflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -L./libmp3lame/lib' \
+'--extra-cflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I../libmp3lame/include' \
+'--extra-ldflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -L../libmp3lame/lib' \
 '--enable-libmp3lame' 
 ```
 
