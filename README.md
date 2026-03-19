@@ -7,20 +7,22 @@
 win:
 ```
 ./configure \
-'--disable-doc' \
-'--arch=x86_64' \
-'--enable-gpl' \
-'--enable-version3' \
-'--disable-static' \
-'--enable-shared' \
-'--disable-static' \
-'--disable-programs' \
-'--prefix=../ffmpeglib' \
-'--enable-network' \
-'--disable-debug' \
-'--disable-x86asm' \
-'--disable-asm' \
-'--enable-libmp3lame'
+--disable-doc \
+--enable-cross-compile \
+--disable-x86asm \
+--arch=x86_64 \
+--enable-gpl \
+--enable-version3 \
+--enable-shared \
+--disable-static \
+--disable-programs \
+--prefix=../ffmpeglib \
+--toolchain=msvc \
+--enable-network \
+--disable-debug \
+--enable-libmp3lame \
+--enable-dxva2 \
+--enable-d3d11va
 
 ```
 mac:
