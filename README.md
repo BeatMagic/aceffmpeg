@@ -1,7 +1,8 @@
 # aceffmpeg
 
-官方原版tag4.4: 
-7ffb7d4b04e392edd7bdb7b28107e39bc349b589 
+官方原版tag n7.1.3 : 
+
+f46e514491172d15bd74b4abb1814cd2f05a763e 
 
 编译参数：
 win:
@@ -21,8 +22,13 @@ win:
 --enable-network \
 --disable-debug \
 --enable-libmp3lame \
+--extra-cflags=-ID:/code/lame/include \
+--extra-ldflags=-LIBPATH:D:/code/lame/lib/x64 \
 --enable-dxva2 \
---enable-d3d11va
+--enable-d3d11va \
+--enable-mediafoundation \
+--enable-cross-compile
+
 
 ```
 mac:
@@ -35,15 +41,14 @@ mac:
 '--enable-shared' \
 '--disable-static' \
 '--target-os=darwin' \
-'--arch=x86_64' \
+'--arch=arm64' \
 '--disable-programs' \
 '--enable-network' \
 '--disable-debug' \
-'--enable-videotoolbox' \
 '--prefix=../ffmpeglib' \
 '--install-name-dir=@rpath' \
-'--extra-cflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I../libmp3lame/include' \
-'--extra-ldflags=-mmacosx-version-min=10.14 -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -L../libmp3lame/lib' \
+'--extra-cflags=-mmacosx-version-min=10.14 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I../libmp3lame/include' \
+'--extra-ldflags=-mmacosx-version-min=10.14 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -L../libmp3lame/lib' \
 '--enable-libmp3lame' 
 ```
 
@@ -151,8 +156,8 @@ target_link_libraries(your_app PRIVATE FFmpeg::FFmpeg)
 
 ### 版本信息
 
-- FFmpeg 版本: 4.4.2
-- 基于官方 tag: 7ffb7d4b04e392edd7bdb7b28107e39bc349b589
+- FFmpeg 版本: n7.1.3
+- 基于官方 tag: f46e514491172d15bd74b4abb1814cd2f05a763e
 
 
 
