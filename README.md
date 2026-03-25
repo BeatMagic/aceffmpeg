@@ -14,8 +14,8 @@ Precompiled FFmpeg 8.1 libraries for ACE Studio.
 | Platform | Architecture | Status |
 |----------|-------------|--------|
 | Windows | x86_64 | Available |
-| macOS | arm64 | Pending |
-| macOS | x86_64 | Pending |
+| macOS | arm64 | Available |
+| macOS | x86_64 | Available |
 
 ## Windows Build
 
@@ -82,6 +82,115 @@ link /DLL /machine:x64 /DEF:"include\lame.def" /OUT:"output\libmp3lame.dll" /IMP
 - FFmpeg **requires** `-O2` optimization even for debug builds (dead-code elimination patterns in FFmpeg source cause linker errors without optimization)
 - MSYS2's `/usr/bin/link.exe` must be renamed/removed to avoid conflict with MSVC's `link.exe`
 - `-DHAVE_UNISTD_H=0` prevents configure from detecting MSYS2's unistd.h as Windows-native
+
+## macOS Build
+
+### Toolchain
+
+Built with **Apple clang 21.0** (Xcode). Deployment target: **macOS 13.0** (`-mmacosx-version-min=13.0`).
+
+NASM 3.01 used for x86_64 assembly optimizations.
+
+### Runtime Dependencies
+
+The produced dylibs depend **only** on:
+- Other FFmpeg dylibs (via `@rpath`)
+- `libmp3lame.0.dylib` (LAME MP3 encoder, LGPL, via `@rpath`)
+- System frameworks: AudioToolbox, VideoToolbox, CoreFoundation, CoreMedia, CoreVideo, CoreServices
+- System libs: libSystem.B.dylib, libiconv.2.dylib, libz.1.dylib, libbz2.1.0.dylib
+
+All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
+
+### Configure Flags (macOS arm64)
+
+```bash
+./configure \
+  --prefix=<install_dir> \
+  --arch=arm64 \
+  --target-os=darwin \
+  --enable-shared \
+  --disable-static \
+  --enable-version3 \
+  --disable-gpl \
+  --disable-programs \
+  --disable-doc \
+  --enable-neon \
+  --enable-videotoolbox \
+  --enable-audiotoolbox \
+  --enable-libmp3lame \
+  --disable-xlib \
+  --disable-libxcb \
+  --disable-libxcb-shm \
+  --disable-libxcb-xfixes \
+  --disable-libxcb-shape \
+  --disable-sdl2 \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path>" \
+  --install-name-dir='@rpath'
+```
+
+### Configure Flags (macOS x86_64, cross-compiled from arm64)
+
+```bash
+./configure \
+  --prefix=<install_dir> \
+  --arch=x86_64 \
+  --target-os=darwin \
+  --enable-cross-compile \
+  --cc='clang -arch x86_64' \
+  --enable-shared \
+  --disable-static \
+  --enable-version3 \
+  --disable-gpl \
+  --disable-programs \
+  --disable-doc \
+  --enable-x86asm \
+  --enable-videotoolbox \
+  --enable-audiotoolbox \
+  --enable-libmp3lame \
+  --disable-xlib \
+  --disable-libxcb \
+  --disable-libxcb-shm \
+  --disable-libxcb-xfixes \
+  --disable-libxcb-shape \
+  --disable-sdl2 \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -arch x86_64" \
+  --install-name-dir='@rpath'
+```
+
+### LAME Build (macOS)
+
+LAME 3.100 built from source (not Homebrew) to control deployment target:
+```bash
+# Patch: remove lame_init_old from include/libmp3lame.sym (undefined symbol)
+sed -i.bak '/lame_init_old/d' include/libmp3lame.sym
+
+./configure \
+  --prefix=<install_dir> \
+  --enable-shared \
+  --disable-static \
+  --disable-frontend \
+  --disable-gtktest \
+  --host=aarch64-apple-darwin \   # or x86_64-apple-darwin
+  CFLAGS="-arch arm64 -mmacosx-version-min=13.0 -O2" \
+  LDFLAGS="-arch arm64 -mmacosx-version-min=13.0"
+```
+
+After building, fix the install name:
+```bash
+install_name_tool -id "@rpath/libmp3lame.0.dylib" <install_dir>/lib/libmp3lame.0.dylib
+```
+
+Also fix all FFmpeg dylibs that reference lame (avcodec, avdevice, avfilter, avformat):
+```bash
+OLD=$(otool -L <dylib> | grep libmp3lame | awk '{print $1}')
+install_name_tool -change "$OLD" "@rpath/libmp3lame.0.dylib" <dylib>
+```
+
+### Post-Build
+
+Stripped with `strip -S` (removes debug symbols only, keeps function names for stack traces).
 
 ## DLL Version Numbers (FFmpeg 8.1)
 
