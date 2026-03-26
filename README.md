@@ -1,8 +1,8 @@
 # aceffmpeg
 
-官方原版tag n7.1.3 : 
+官方原版tag n8.1  : 
 
-f46e514491172d15bd74b4abb1814cd2f05a763e 
+9047fa1b084f76b1b4d065af2d743df1b40dfb56
 
 编译参数：
 win:
@@ -154,10 +154,7 @@ target_link_libraries(your_app PRIVATE FFmpeg::FFmpeg)
 2. **找不到库**: 检查您的平台是否受支持，以及库文件是否存在
 3. **架构不匹配**: 确保您的项目架构与可用的库架构匹配
 
-### 版本信息
 
-- FFmpeg 版本: n7.1.3
-- 基于官方 tag: f46e514491172d15bd74b4abb1814cd2f05a763e
 
 
 
