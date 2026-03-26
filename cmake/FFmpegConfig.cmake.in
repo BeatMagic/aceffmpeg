@@ -41,7 +41,6 @@ set(FFMPEG_LIBRARIES
     avfilter
     avformat
     avutil
-    postproc
     swresample
     swscale
 )
