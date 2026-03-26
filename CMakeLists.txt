@@ -35,7 +35,6 @@ set(FFMPEG_LIBRARIES
     avfilter
     avformat
     avutil
-    postproc
     swresample
     swscale
 )
@@ -74,7 +73,7 @@ endforeach()
 add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
 set_target_properties(FFmpeg::FFmpeg PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
-    INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::postproc;FFmpeg::swresample;FFmpeg::swscale"
+    INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::swresample;FFmpeg::swscale"
 )
 
 # 使导入目标在全局范围内可用
