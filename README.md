@@ -1,207 +1,240 @@
 # aceffmpeg
 
 官方原版tag n8.1  : 
+Precompiled FFmpeg 8.1 libraries for ACE Studio.
 
 9047fa1b084f76b1b4d065af2d743df1b40dfb56
+**License:** LGPL v3 (no GPL components)
 
-编译参数：
-win:
-```
+## Version Info
+
+- FFmpeg version: **8.1** (tag `n8.1` from https://ffmpeg.org)
+- LAME (libmp3lame): **3.100**
+
+## Platforms
+
+| Platform | Architecture | Status |
+|----------|-------------|--------|
+| Windows | x86_64 | Available |
+| macOS | arm64 | Available |
+| macOS | x86_64 | Available |
+
+## Windows Build
+
+### Toolchain
+
+Built with **MSVC** (cl.exe 19.44, Visual Studio 2022) via MSYS2 + `--toolchain=msvc`.
+
+NASM 3.01 used for x86 assembly optimizations (SIMD/SSE/AVX).
+
+### Runtime Dependencies (verified with Dependencies.exe)
+
+The produced DLLs depend **only** on:
+- Other FFmpeg DLLs (avutil-60.dll, swresample-6.dll, etc.)
+- `libmp3lame.dll` (LAME MP3 encoder, LGPL)
+- Windows system DLLs: `KERNEL32.dll`, `ole32.dll`, `USER32.dll`, `mfplat.dll` (Media Foundation)
+- MSVC runtime: `VCRUNTIME140.dll`, `api-ms-win-crt-*.dll` (Universal CRT)
+
+**No** extra clang/gcc runtime dependencies. Pure MSVC ABI.
+
+### Configure Flags (Windows)
+
+```bash
 ./configure \
---disable-doc \
---enable-cross-compile \
---disable-x86asm \
---arch=x86_64 \
---enable-gpl \
---enable-version3 \
---enable-shared \
---disable-static \
---disable-programs \
---prefix=../ffmpeglib \
---toolchain=msvc \
---enable-network \
---disable-debug \
---enable-libmp3lame \
---extra-cflags=-ID:/code/lame/include \
---extra-ldflags=-LIBPATH:D:/code/lame/lib/x64 \
---enable-dxva2 \
---enable-d3d11va \
---enable-mediafoundation \
---enable-cross-compile
-
-
+  --arch=x86_64 \
+  --target-os=win32 \
+  --toolchain=msvc \
+  --enable-version3 \
+  --enable-shared \
+  --disable-static \
+  --disable-programs \
+  --disable-doc \
+  --enable-w32threads \
+  --enable-network \
+  --disable-debug \
+  --disable-bzlib \
+  --enable-libmp3lame \
+  --enable-dxva2 \
+  --enable-d3d11va \
+  --enable-mediafoundation \
+  --extra-cflags='-MD -O2 -DHAVE_UNISTD_H=0 -I<lame_include_path>' \
+  --extra-ldflags='-LIBPATH:<lame_lib_path>'
 ```
-mac:
+
+### Patches Applied
+
+The following patches from vcpkg (microsoft/vcpkg ports/ffmpeg) are needed for MSVC:
+
+1. **`0046-fix-msvc-detection.patch`** - Case-insensitive MSVC compiler detection in configure
+2. **`0002-fix-msvc-link.patch`** - Debug symbols for NASM assembly on Windows
+3. **`0005-fix-nasm.patch`** - Fix empty NASM object files on 32-bit MSVC
+4. **`0007-fix-lib-naming.patch`** - MSVC library name mapping (`-lmp3lame` -> `libmp3lame.lib`)
+5. **`0013-define-WINVER.patch`** - Define `WINVER=0x0602` for Media Foundation
+
+### LAME Build (Windows)
+
+LAME 3.100 built with MSVC nmake:
 ```
+nmake -f Makefile.MSVC MSVCVER=Win64 ASM=NO MACHINE=/machine:x64 libmp3lame-static.lib
+link /DLL /machine:x64 /DEF:"include\lame.def" /OUT:"output\libmp3lame.dll" /IMPLIB:"output\libmp3lame.lib" output\libmp3lame-static.lib libmp3lame\version.obj
+```
+
+### Important Build Notes
+
+- FFmpeg **requires** `-O2` optimization even for debug builds (dead-code elimination patterns in FFmpeg source cause linker errors without optimization)
+- MSYS2's `/usr/bin/link.exe` must be renamed/removed to avoid conflict with MSVC's `link.exe`
+- `-DHAVE_UNISTD_H=0` prevents configure from detecting MSYS2's unistd.h as Windows-native
+
+## macOS Build
+
+### Toolchain
+
+Built with **Apple clang 21.0** (Xcode). Deployment target: **macOS 13.0** (`-mmacosx-version-min=13.0`).
+
+NASM 3.01 used for x86_64 assembly optimizations.
+
+### Runtime Dependencies
+
+The produced dylibs depend **only** on:
+- Other FFmpeg dylibs (via `@rpath`)
+- `libmp3lame.0.dylib` (LAME MP3 encoder, LGPL, via `@rpath`)
+- System frameworks: AudioToolbox, VideoToolbox, CoreFoundation, CoreMedia, CoreVideo, CoreServices
+- System libs: libSystem.B.dylib, libiconv.2.dylib, libz.1.dylib, libbz2.1.0.dylib
+
+All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
+
+### Configure Flags (macOS arm64)
+
+```bash
 ./configure \
-'--disable-doc' \
-'--enable-cross-compile' \
-'--enable-gpl' \
-'--enable-version3' \
-'--enable-shared' \
-'--disable-static' \
-'--target-os=darwin' \
-'--arch=arm64' \
-'--disable-programs' \
-'--enable-network' \
-'--disable-debug' \
-'--prefix=../ffmpeglib' \
-'--install-name-dir=@rpath' \
-'--extra-cflags=-mmacosx-version-min=10.14 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -I../libmp3lame/include' \
-'--extra-ldflags=-mmacosx-version-min=10.14 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk -L../libmp3lame/lib' \
-'--enable-libmp3lame' 
+  --prefix=<install_dir> \
+  --arch=arm64 \
+  --target-os=darwin \
+  --enable-shared \
+  --disable-static \
+  --enable-version3 \
+  --disable-gpl \
+  --disable-programs \
+  --disable-doc \
+  --enable-neon \
+  --enable-videotoolbox \
+  --enable-audiotoolbox \
+  --enable-libmp3lame \
+  --disable-xlib \
+  --disable-libxcb \
+  --disable-libxcb-shm \
+  --disable-libxcb-xfixes \
+  --disable-libxcb-shape \
+  --disable-sdl2 \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path>" \
+  --install-name-dir='@rpath'
 ```
 
-## 使用 CMake FetchContent 集成
+### Configure Flags (macOS x86_64, cross-compiled from arm64)
 
-本仓库已配置为支持 CMake 的 FetchContent 功能，使其他项目可以轻松集成预编译的 FFmpeg 库。
+```bash
+./configure \
+  --prefix=<install_dir> \
+  --arch=x86_64 \
+  --target-os=darwin \
+  --enable-cross-compile \
+  --cc='clang -arch x86_64' \
+  --enable-shared \
+  --disable-static \
+  --enable-version3 \
+  --disable-gpl \
+  --disable-programs \
+  --disable-doc \
+  --enable-x86asm \
+  --enable-videotoolbox \
+  --enable-audiotoolbox \
+  --enable-libmp3lame \
+  --disable-xlib \
+  --disable-libxcb \
+  --disable-libxcb-shm \
+  --disable-libxcb-xfixes \
+  --disable-libxcb-shape \
+  --disable-sdl2 \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -arch x86_64" \
+  --install-name-dir='@rpath'
+```
 
-### 基本用法
+### LAME Build (macOS)
 
-在您的 CMakeLists.txt 文件中添加以下内容：
+LAME 3.100 built from source (not Homebrew) to control deployment target:
+```bash
+# Patch: remove lame_init_old from include/libmp3lame.sym (undefined symbol)
+sed -i.bak '/lame_init_old/d' include/libmp3lame.sym
+
+./configure \
+  --prefix=<install_dir> \
+  --enable-shared \
+  --disable-static \
+  --disable-frontend \
+  --disable-gtktest \
+  --host=aarch64-apple-darwin \   # or x86_64-apple-darwin
+  CFLAGS="-arch arm64 -mmacosx-version-min=13.0 -O2" \
+  LDFLAGS="-arch arm64 -mmacosx-version-min=13.0"
+```
+
+After building, fix the install name:
+```bash
+install_name_tool -id "@rpath/libmp3lame.0.dylib" <install_dir>/lib/libmp3lame.0.dylib
+```
+
+Also fix all FFmpeg dylibs that reference lame (avcodec, avdevice, avfilter, avformat):
+```bash
+OLD=$(otool -L <dylib> | grep libmp3lame | awk '{print $1}')
+install_name_tool -change "$OLD" "@rpath/libmp3lame.0.dylib" <dylib>
+```
+
+### Post-Build
+
+Stripped with `strip -S` (removes debug symbols only, keeps function names for stack traces).
+
+## DLL Version Numbers (FFmpeg 8.1)
+
+| Library | SONAME | DLL Name |
+|---------|--------|----------|
+| libavcodec | 62 | avcodec-62.dll |
+| libavdevice | 62 | avdevice-62.dll |
+| libavfilter | 11 | avfilter-11.dll |
+| libavformat | 62 | avformat-62.dll |
+| libavutil | 60 | avutil-60.dll |
+| libswresample | 6 | swresample-6.dll |
+| libswscale | 9 | swscale-9.dll |
+
+**Note:** `libpostproc` is not included as it requires GPL license.
+
+## CMake Integration
+
+### Using FetchContent
 
 ```cmake
-cmake_minimum_required(VERSION 3.16)
-
-project(your_project)
-
-# 使用 FetchContent 获取 FFmpeg
 include(FetchContent)
-
 FetchContent_Declare(
     aceffmpeg
-    GIT_REPOSITORY https://github.com/your-username/aceffmpeg.git
-    GIT_TAG main  # 或者指定特定的标签/分支
+    GIT_REPOSITORY https://github.com/BeatMagic/aceffmpeg.git
+    GIT_TAG ace8
 )
-
-FetchContent_MakeAvailable(aceffmpeg)
-
-# 创建您的可执行文件
-add_executable(your_app main.cpp)
-
-# 链接 FFmpeg 库
-target_link_libraries(your_app PRIVATE FFmpeg::FFmpeg)
-
-# 或者链接特定的 FFmpeg 库
-# target_link_libraries(your_app PRIVATE
-#     FFmpeg::avcodec
-#     FFmpeg::avformat
-#     FFmpeg::avutil
-# )
-```
-
-### C++ 代码示例
-
-在 C++ 中使用 FFmpeg 时，需要使用 `extern "C"` 包装 FFmpeg 头文件：
-
-```cpp
-#include <iostream>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/avutil.h>
-}
-
-int main() {
-    std::cout << "FFmpeg version: " << av_version_info() << std::endl;
-    
-    // 初始化 FFmpeg
-    avformat_network_init();
-    
-    std::cout << "FFmpeg initialization successful!" << std::endl;
-    
-    return 0;
-}
-```
-
-### 可用的 CMake 目标
-
-本库提供以下 CMake 目标：
-
-- `FFmpeg::FFmpeg` - 包含所有 FFmpeg 库的总目标
-- `FFmpeg::avcodec` - 音视频编解码库
-- `FFmpeg::avdevice` - 设备访问库
-- `FFmpeg::avfilter` - 音视频滤镜库
-- `FFmpeg::avformat` - 音视频格式库
-- `FFmpeg::avutil` - 通用工具库
-- `FFmpeg::postproc` - 后处理库
-- `FFmpeg::swresample` - 音频重采样库
-- `FFmpeg::swscale` - 视频缩放库
-
-### 支持的平台
-
-- **Windows**: x86_64 架构
-- **macOS**: x86_64 和 arm64 (Apple Silicon) 架构
-- **Linux**: 使用 macOS x86_64 库作为 fallback
-
-CMake 会自动检测您的平台和架构，并选择合适的库文件。
-
-### 直接下载使用
-
-您也可以直接下载此仓库并在本地项目中使用：
-
-```cmake
-# 假设您将 aceffmpeg 放在项目的 third_party 目录中
-add_subdirectory(third_party/aceffmpeg)
-
-target_link_libraries(your_app PRIVATE FFmpeg::FFmpeg)
-```
-
-### 故障排除
-
-1. **链接错误**: 确保在 C++ 中使用 `extern "C"` 包装 FFmpeg 头文件
-2. **找不到库**: 检查您的平台是否受支持，以及库文件是否存在
-3. **架构不匹配**: 确保您的项目架构与可用的库架构匹配
-
-
-
-
-
-
-```
-创建的文件
-CMakeLists.txt - 主要的CMake配置文件
-
-支持Windows、macOS (x86_64和arm64)平台自动检测
-为所有FFmpeg库创建导入目标（FFmpeg::avcodec、FFmpeg::avformat等）
-提供统一的FFmpeg::FFmpeg目标包含所有库
-cmake/FFmpegConfig.cmake.in - 包配置模板文件
-
-支持find_package机制
-自动检测库文件存在性
-提供向后兼容的变量设置
-test_example/ - 测试示例项目
-
-演示如何使用FetchContent集成FFmpeg
-包含C++使用示例代码
-更新的文件
-README.md - 添加了详细的使用说明
-FetchContent集成方法
-C++代码示例
-可用CMake目标说明
-故障排除指南
-使用方法
-其他项目现在可以通过以下方式使用您的FFmpeg库：
-
-include(FetchContent)
-
-FetchContent_Declare(
-    aceffmpeg
-    GIT_REPOSITORY https://github.com/your-username/aceffmpeg.git
-    GIT_TAG main
-)
-
 FetchContent_MakeAvailable(aceffmpeg)
 
 target_link_libraries(your_app PRIVATE FFmpeg::FFmpeg)
-
-cmake
-
-
-配置已经过测试验证，能够在macOS arm64平台上成功编译和运行。现在您的仓库完全支持CMake FetchContent功能了。
 ```
 
+### Available CMake Targets
 
+- `FFmpeg::FFmpeg` - All FFmpeg libraries
+- `FFmpeg::avcodec`, `FFmpeg::avdevice`, `FFmpeg::avfilter`, `FFmpeg::avformat`
+- `FFmpeg::avutil`, `FFmpeg::swresample`, `FFmpeg::swscale`
 
+## Migration from FFmpeg 4.4
 
+Key API changes:
+- `AVCodecContext::channels` / `channel_layout` -> `ch_layout` (AVChannelLayout struct)
+- `av_get_default_channel_layout()` -> `av_channel_layout_default()`
+- `swr_alloc_set_opts()` -> `swr_alloc_set_opts2()`
+- `AV_CH_LAYOUT_MONO` -> `AV_CHANNEL_LAYOUT_MONO` (struct macro)
+- `frame->channels` / `frame->channel_layout` -> `av_channel_layout_copy(&frame->ch_layout, ...)`

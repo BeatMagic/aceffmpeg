@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(aceffmpeg 
-    VERSION 4.4.0
+    VERSION 8.1.0
     DESCRIPTION "Precompiled FFmpeg libraries for cross-platform development"
     LANGUAGES C CXX
 )
