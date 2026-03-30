@@ -10,6 +10,7 @@ Precompiled FFmpeg 8.1 libraries for ACE Studio.
 
 - FFmpeg version: **8.1** (tag `n8.1` from https://ffmpeg.org)
 - LAME (libmp3lame): **3.100**
+- Opus (libopus): **1.5.2**
 
 ## Platforms
 
@@ -32,6 +33,7 @@ NASM 3.01 used for x86 assembly optimizations (SIMD/SSE/AVX).
 The produced DLLs depend **only** on:
 - Other FFmpeg DLLs (avutil-60.dll, swresample-6.dll, etc.)
 - `libmp3lame.dll` (LAME MP3 encoder, LGPL)
+- `opus.dll` (Opus audio codec, BSD)
 - Windows system DLLs: `KERNEL32.dll`, `ole32.dll`, `USER32.dll`, `mfplat.dll` (Media Foundation)
 - MSVC runtime: `VCRUNTIME140.dll`, `api-ms-win-crt-*.dll` (Universal CRT)
 
@@ -54,11 +56,12 @@ The produced DLLs depend **only** on:
   --disable-debug \
   --disable-bzlib \
   --enable-libmp3lame \
+  --enable-libopus \
   --enable-dxva2 \
   --enable-d3d11va \
   --enable-mediafoundation \
-  --extra-cflags='-MD -O2 -DHAVE_UNISTD_H=0 -I<lame_include_path>' \
-  --extra-ldflags='-LIBPATH:<lame_lib_path>'
+  --extra-cflags='-MD -O2 -DHAVE_UNISTD_H=0 -I<lame_include_path> -I<opus_install_dir>/include' \
+  --extra-ldflags='-LIBPATH:<lame_lib_path> -LIBPATH:<opus_install_dir>/lib'
 ```
 
 ### Patches Applied
@@ -79,6 +82,27 @@ nmake -f Makefile.MSVC MSVCVER=Win64 ASM=NO MACHINE=/machine:x64 libmp3lame-stat
 link /DLL /machine:x64 /DEF:"include\lame.def" /OUT:"output\libmp3lame.dll" /IMPLIB:"output\libmp3lame.lib" output\libmp3lame-static.lib libmp3lame\version.obj
 ```
 
+### Opus Build (Windows)
+
+Opus 1.5.2 from https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
+
+Use CMake for the MSVC build (autotools doesn't work well with MSVC):
+```bash
+tar xf opus-1.5.2.tar.gz
+cd opus-1.5.2
+mkdir build && cd build
+cmake .. -G "NMake Makefiles" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX=<opus_install_dir> \
+  -DBUILD_SHARED_LIBS=ON \
+  -DOPUS_BUILD_TESTING=OFF \
+  -DOPUS_BUILD_PROGRAMS=OFF
+nmake
+nmake install
+```
+
+This produces `opus.dll` + `opus.lib`. Copy both to `ffmpeg/lib/win/`.
+
 ### Important Build Notes
 
 - FFmpeg **requires** `-O2` optimization even for debug builds (dead-code elimination patterns in FFmpeg source cause linker errors without optimization)
@@ -98,6 +122,7 @@ NASM 3.01 used for x86_64 assembly optimizations.
 The produced dylibs depend **only** on:
 - Other FFmpeg dylibs (via `@rpath`)
 - `libmp3lame.0.dylib` (LAME MP3 encoder, LGPL, via `@rpath`)
+- `libopus.0.dylib` (Opus audio codec, BSD, via `@rpath`)
 - System frameworks: AudioToolbox, VideoToolbox, CoreFoundation, CoreMedia, CoreVideo, CoreServices
 - System libs: libSystem.B.dylib, libiconv.2.dylib, libz.1.dylib, libbz2.1.0.dylib
 
@@ -120,14 +145,15 @@ All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
   --enable-videotoolbox \
   --enable-audiotoolbox \
   --enable-libmp3lame \
+  --enable-libopus \
   --disable-xlib \
   --disable-libxcb \
   --disable-libxcb-shm \
   --disable-libxcb-xfixes \
   --disable-libxcb-shape \
   --disable-sdl2 \
-  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
-  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path>" \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path> -I<opus_install_dir>/include" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -L<opus_install_dir>/lib" \
   --install-name-dir='@rpath'
 ```
 
@@ -150,14 +176,15 @@ All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
   --enable-videotoolbox \
   --enable-audiotoolbox \
   --enable-libmp3lame \
+  --enable-libopus \
   --disable-xlib \
   --disable-libxcb \
   --disable-libxcb-shm \
   --disable-libxcb-xfixes \
   --disable-libxcb-shape \
   --disable-sdl2 \
-  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path>" \
-  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -arch x86_64" \
+  --extra-cflags="-mmacosx-version-min=13.0 -I<lame_include_path> -I<opus_install_dir>/include" \
+  --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -L<opus_install_dir>/lib -arch x86_64" \
   --install-name-dir='@rpath'
 ```
 
@@ -189,6 +216,34 @@ Also fix all FFmpeg dylibs that reference lame (avcodec, avdevice, avfilter, avf
 OLD=$(otool -L <dylib> | grep libmp3lame | awk '{print $1}')
 install_name_tool -change "$OLD" "@rpath/libmp3lame.0.dylib" <dylib>
 ```
+
+### Opus Build (macOS)
+
+Opus 1.5.2 from https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
+
+```bash
+tar xf opus-1.5.2.tar.gz
+cd opus-1.5.2
+
+./configure \
+  --prefix=<install_dir> \
+  --enable-shared \
+  --disable-static \
+  --disable-doc \
+  --disable-extra-programs \
+  --host=aarch64-apple-darwin \   # or x86_64-apple-darwin
+  CFLAGS="-arch arm64 -mmacosx-version-min=13.0 -O2" \
+  LDFLAGS="-arch arm64 -mmacosx-version-min=13.0"
+
+make -j$(sysctl -n hw.ncpu) && make install
+```
+
+Fix the install name:
+```bash
+install_name_tool -id "@rpath/libopus.0.dylib" <install_dir>/lib/libopus.0.dylib
+```
+
+**Why libopus is required:** FFmpeg's native Opus encoder (`opus/enc.c`) uses a 64-entry `FFBufQueue` that silently drops audio frames on long files (>~1.3s of buffered audio). The `libopus` wrapper (`libopusenc.c`) uses the external libopus library which handles buffering correctly. With `--enable-libopus`, `avcodec_find_encoder(AV_CODEC_ID_OPUS)` picks `libopus` by default.
 
 ### Post-Build
 
