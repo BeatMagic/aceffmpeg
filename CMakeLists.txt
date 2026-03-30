@@ -28,7 +28,7 @@ elseif(UNIX)
     set(LIB_SUFFIX ".dylib")
 endif()
 
-# FFmpeg库列表
+# FFmpeg核心库列表
 set(FFMPEG_LIBRARIES
     avcodec
     avdevice
@@ -39,7 +39,7 @@ set(FFMPEG_LIBRARIES
     swscale
 )
 
-# 创建导入目标
+# 创建FFmpeg核心库导入目标
 foreach(lib ${FFMPEG_LIBRARIES})
     add_library(FFmpeg::${lib} SHARED IMPORTED)
     
@@ -69,15 +69,56 @@ foreach(lib ${FFMPEG_LIBRARIES})
     endif()
 endforeach()
 
-# 创建FFmpeg总目标，包含所有库
+# FFmpeg第三方依赖库（命名规则与核心库不同，需单独处理）
+# opus
+add_library(FFmpeg::opus SHARED IMPORTED)
+set_target_properties(FFmpeg::opus PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
+)
+if(WIN32)
+    set_target_properties(FFmpeg::opus PROPERTIES
+        IMPORTED_IMPLIB "${FFMPEG_LIB_DIR}/opus${LIB_SUFFIX}"
+        IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/opus${DLL_SUFFIX}"
+    )
+else()
+    set_target_properties(FFmpeg::opus PROPERTIES
+        IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libopus${LIB_SUFFIX}"
+    )
+endif()
+
+# mp3lame
+add_library(FFmpeg::mp3lame SHARED IMPORTED)
+set_target_properties(FFmpeg::mp3lame PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
+)
+if(WIN32)
+    set_target_properties(FFmpeg::mp3lame PROPERTIES
+        IMPORTED_IMPLIB "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}"
+        IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libmp3lame${DLL_SUFFIX}"
+    )
+else()
+    set_target_properties(FFmpeg::mp3lame PROPERTIES
+        IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}"
+    )
+endif()
+
+# 第三方依赖库列表（用于遍历设置全局属性等）
+set(FFMPEG_DEP_LIBRARIES opus mp3lame)
+
+# 创建FFmpeg总目标，包含所有核心库和第三方依赖库
 add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
 set_target_properties(FFmpeg::FFmpeg PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
-    INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::swresample;FFmpeg::swscale"
+    INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::swresample;FFmpeg::swscale;FFmpeg::opus;FFmpeg::mp3lame"
 )
 
 # 使导入目标在全局范围内可用
 foreach(lib ${FFMPEG_LIBRARIES})
+    set_target_properties(FFmpeg::${lib} PROPERTIES
+        IMPORTED_GLOBAL TRUE
+    )
+endforeach()
+foreach(lib ${FFMPEG_DEP_LIBRARIES})
     set_target_properties(FFmpeg::${lib} PROPERTIES
         IMPORTED_GLOBAL TRUE
     )

@@ -34,7 +34,7 @@ elseif(UNIX)
     set(LIB_SUFFIX ".dylib")
 endif()
 
-# FFmpeg库列表
+# FFmpeg核心库列表
 set(FFMPEG_LIBRARIES
     avcodec
     avdevice
@@ -45,7 +45,7 @@ set(FFMPEG_LIBRARIES
     swscale
 )
 
-# 检查所有库是否存在
+# 检查FFmpeg核心库是否存在
 set(FFMPEG_FOUND TRUE)
 foreach(lib ${FFMPEG_LIBRARIES})
     if(WIN32)
@@ -65,6 +65,29 @@ foreach(lib ${FFMPEG_LIBRARIES})
     endif()
 endforeach()
 
+# 检查第三方依赖库是否存在
+if(FFMPEG_FOUND)
+    if(WIN32)
+        if(NOT EXISTS "${FFMPEG_LIB_DIR}/opus.lib")
+            set(FFMPEG_FOUND FALSE)
+            set(FFMPEG_NOT_FOUND_MESSAGE "Could not find opus.lib in ${FFMPEG_LIB_DIR}")
+        endif()
+        if(FFMPEG_FOUND AND NOT EXISTS "${FFMPEG_LIB_DIR}/libmp3lame.lib")
+            set(FFMPEG_FOUND FALSE)
+            set(FFMPEG_NOT_FOUND_MESSAGE "Could not find libmp3lame.lib in ${FFMPEG_LIB_DIR}")
+        endif()
+    else()
+        if(NOT EXISTS "${FFMPEG_LIB_DIR}/libopus${LIB_SUFFIX}")
+            set(FFMPEG_FOUND FALSE)
+            set(FFMPEG_NOT_FOUND_MESSAGE "Could not find libopus${LIB_SUFFIX} in ${FFMPEG_LIB_DIR}")
+        endif()
+        if(FFMPEG_FOUND AND NOT EXISTS "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}")
+            set(FFMPEG_FOUND FALSE)
+            set(FFMPEG_NOT_FOUND_MESSAGE "Could not find libmp3lame${LIB_SUFFIX} in ${FFMPEG_LIB_DIR}")
+        endif()
+    endif()
+endif()
+
 if(NOT EXISTS "${FFMPEG_INCLUDE_DIR}")
     set(FFMPEG_FOUND FALSE)
     set(FFMPEG_NOT_FOUND_MESSAGE "Could not find FFmpeg include directory")
@@ -72,6 +95,7 @@ endif()
 
 # 创建导入目标（如果尚未创建）
 if(FFMPEG_FOUND AND NOT TARGET FFmpeg::avcodec)
+    # 创建FFmpeg核心库导入目标
     foreach(lib ${FFMPEG_LIBRARIES})
         add_library(FFmpeg::${lib} SHARED IMPORTED)
         
@@ -100,12 +124,45 @@ if(FFMPEG_FOUND AND NOT TARGET FFmpeg::avcodec)
         endif()
     endforeach()
     
-    # 创建FFmpeg总目标
+    # 创建第三方依赖库导入目标（命名规则与核心库不同，需单独处理）
+    # opus
+    add_library(FFmpeg::opus SHARED IMPORTED)
+    set_target_properties(FFmpeg::opus PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
+    )
+    if(WIN32)
+        set_target_properties(FFmpeg::opus PROPERTIES
+            IMPORTED_IMPLIB "${FFMPEG_LIB_DIR}/opus${LIB_SUFFIX}"
+            IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/opus.dll"
+        )
+    else()
+        set_target_properties(FFmpeg::opus PROPERTIES
+            IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libopus${LIB_SUFFIX}"
+        )
+    endif()
+
+    # mp3lame
+    add_library(FFmpeg::mp3lame SHARED IMPORTED)
+    set_target_properties(FFmpeg::mp3lame PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
+    )
+    if(WIN32)
+        set_target_properties(FFmpeg::mp3lame PROPERTIES
+            IMPORTED_IMPLIB "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}"
+            IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libmp3lame.dll"
+        )
+    else()
+        set_target_properties(FFmpeg::mp3lame PROPERTIES
+            IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}"
+        )
+    endif()
+
+    # 创建FFmpeg总目标，包含所有核心库和第三方依赖库
     if(NOT TARGET FFmpeg::FFmpeg)
         add_library(FFmpeg::FFmpeg INTERFACE IMPORTED)
         set_target_properties(FFmpeg::FFmpeg PROPERTIES
             INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIR}"
-            INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::swresample;FFmpeg::swscale"
+            INTERFACE_LINK_LIBRARIES "FFmpeg::avcodec;FFmpeg::avdevice;FFmpeg::avfilter;FFmpeg::avformat;FFmpeg::avutil;FFmpeg::swresample;FFmpeg::swscale;FFmpeg::opus;FFmpeg::mp3lame"
         )
     endif()
 endif()
@@ -124,6 +181,14 @@ if(FFMPEG_FOUND)
             list(APPEND FFMPEG_LIBRARY_FILES "${FFMPEG_LIB_DIR}/lib${lib}${LIB_SUFFIX}")
         endif()
     endforeach()
+    # 添加第三方依赖库
+    if(WIN32)
+        list(APPEND FFMPEG_LIBRARY_FILES "${FFMPEG_LIB_DIR}/opus${LIB_SUFFIX}")
+        list(APPEND FFMPEG_LIBRARY_FILES "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}")
+    else()
+        list(APPEND FFMPEG_LIBRARY_FILES "${FFMPEG_LIB_DIR}/libopus${LIB_SUFFIX}")
+        list(APPEND FFMPEG_LIBRARY_FILES "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}")
+    endif()
     set(FFMPEG_LIBS ${FFMPEG_LIBRARY_FILES})
 endif()
 
