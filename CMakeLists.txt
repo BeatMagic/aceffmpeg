@@ -19,8 +19,10 @@ elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
     # 检测macOS架构
     if(CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
         set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/arm64/release")
+        set(FFMPEG_LIB_DEBUG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/arm64/debug")
     else()
         set(FFMPEG_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/x86_64/release")
+        set(FFMPEG_LIB_DEBUG_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/lib/macos/x86_64/debug")
     endif()
     set(LIB_SUFFIX ".dylib")
 elseif(UNIX)
@@ -78,6 +80,13 @@ foreach(lib ${FFMPEG_LIBRARIES})
         set_target_properties(FFmpeg::${lib} PROPERTIES
             IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/lib${lib}${LIB_SUFFIX}"
         )
+
+        # Debug config override
+        if(FFMPEG_HAS_DEBUG_LIBS)
+            set_target_properties(FFmpeg::${lib} PROPERTIES
+                IMPORTED_LOCATION_DEBUG "${FFMPEG_LIB_DEBUG_DIR}/lib${lib}${LIB_SUFFIX}"
+            )
+        endif()
     endif()
 endforeach()
 
@@ -102,6 +111,11 @@ else()
     set_target_properties(FFmpeg::opus PROPERTIES
         IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libopus${LIB_SUFFIX}"
     )
+    if(FFMPEG_HAS_DEBUG_LIBS)
+        set_target_properties(FFmpeg::opus PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${FFMPEG_LIB_DEBUG_DIR}/libopus${LIB_SUFFIX}"
+        )
+    endif()
 endif()
 
 # mp3lame
@@ -124,6 +138,11 @@ else()
     set_target_properties(FFmpeg::mp3lame PROPERTIES
         IMPORTED_LOCATION "${FFMPEG_LIB_DIR}/libmp3lame${LIB_SUFFIX}"
     )
+    if(FFMPEG_HAS_DEBUG_LIBS)
+        set_target_properties(FFmpeg::mp3lame PROPERTIES
+            IMPORTED_LOCATION_DEBUG "${FFMPEG_LIB_DEBUG_DIR}/libmp3lame${LIB_SUFFIX}"
+        )
+    endif()
 endif()
 
 # 第三方依赖库列表

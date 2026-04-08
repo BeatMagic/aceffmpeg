@@ -14,11 +14,11 @@ Precompiled FFmpeg 8.1 libraries for ACE Studio.
 
 ## Platforms
 
-| Platform | Architecture | Status |
-|----------|-------------|--------|
-| Windows | x86_64 | Available |
-| macOS | arm64 | Available |
-| macOS | x86_64 | Available |
+| Platform | Architecture | Release | Debug |
+|----------|-------------|---------|-------|
+| Windows | x86_64 | Available | Available |
+| macOS | arm64 | Available | Available |
+| macOS | x86_64 | Available | Available |
 
 ## Windows Build
 
@@ -245,9 +245,29 @@ install_name_tool -id "@rpath/libopus.0.dylib" <install_dir>/lib/libopus.0.dylib
 
 **Why libopus is required:** FFmpeg's native Opus encoder (`opus/enc.c`) uses a 64-entry `FFBufQueue` that silently drops audio frames on long files (>~1.3s of buffered audio). The `libopus` wrapper (`libopusenc.c`) uses the external libopus library which handles buffering correctly. With `--enable-libopus`, `avcodec_find_encoder(AV_CODEC_ID_OPUS)` picks `libopus` by default.
 
-### Post-Build
+### Post-Build (Release)
 
 Stripped with `strip -S` (removes debug symbols only, keeps function names for stack traces).
+
+### macOS Debug Build
+
+Debug dylibs are built with the same flags as release, plus:
+- `--enable-debug --disable-stripping` (FFmpeg configure)
+- `-g` added to `--extra-cflags` (DWARF debug symbols)
+- **No** `strip -S` post-build step
+
+FFmpeg still uses `-O2` (required — dead-code elimination patterns in FFmpeg source cause linker errors without optimization).
+
+LAME and Opus are also rebuilt with `-g -O2` in CFLAGS for consistent debug symbols.
+
+Output is placed in `ffmpeg/lib/macos/{arm64,x86_64}/debug/`.
+
+A convenience script `build_macos_debug.sh` automates the full build:
+```bash
+./build_macos_debug.sh          # build both arm64 + x86_64
+./build_macos_debug.sh arm64    # build arm64 only
+./build_macos_debug.sh x86_64   # build x86_64 only
+```
 
 ## DLL Version Numbers (FFmpeg 8.1)
 
