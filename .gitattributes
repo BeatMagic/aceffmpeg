@@ -1,0 +1,11 @@
+# Windows binaries — all real files, no symlinks
+ffmpeg/lib/win/**/*.dll filter=lfs diff=lfs merge=lfs -text
+ffmpeg/lib/win/**/*.lib filter=lfs diff=lfs merge=lfs -text
+ffmpeg/lib/win/**/*.pdb filter=lfs diff=lfs merge=lfs -text
+
+# macOS dylibs — only the versioned real files, NOT the symlinks
+# FFmpeg core libs: libXXX.<soversion>.<minor>.<micro>.dylib
+ffmpeg/lib/macos/**/*.*.*.*.dylib filter=lfs diff=lfs merge=lfs -text
+# Third-party deps: libXXX.0.dylib (real files, not the unversioned symlinks)
+ffmpeg/lib/macos/**/libmp3lame.0.dylib filter=lfs diff=lfs merge=lfs -text
+ffmpeg/lib/macos/**/libopus.0.dylib filter=lfs diff=lfs merge=lfs -text
