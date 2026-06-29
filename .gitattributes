@@ -9,3 +9,5 @@ ffmpeg/lib/macos/**/*.*.*.*.dylib filter=lfs diff=lfs merge=lfs -text
 # Third-party deps: libXXX.0.dylib (real files, not the unversioned symlinks)
 ffmpeg/lib/macos/**/libmp3lame.0.dylib filter=lfs diff=lfs merge=lfs -text
 ffmpeg/lib/macos/**/libopus.0.dylib filter=lfs diff=lfs merge=lfs -text
+# dav1d: libdav1d.<soversion>.dylib (e.g. libdav1d.7.dylib) — real file, not the symlink
+ffmpeg/lib/macos/**/libdav1d.*.dylib filter=lfs diff=lfs merge=lfs -text

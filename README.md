@@ -1,16 +1,27 @@
 # aceffmpeg
 
-官方原版tag n8.1  : 
-Precompiled FFmpeg 8.1 libraries for ACE Studio.
+Precompiled FFmpeg libraries for ACE Studio.
 
-9047fa1b084f76b1b4d065af2d743df1b40dfb56
-**License:** LGPL v3 (no GPL components)
+**License:** LGPL v3 (no GPL components; dav1d is BSD)
 
 ## Version Info
 
-- FFmpeg version: **8.1** (tag `n8.1` from https://ffmpeg.org)
+- FFmpeg version: **8.1.2** (`ffmpeg-8.1.2.tar.xz` from https://ffmpeg.org)
 - LAME (libmp3lame): **3.100**
 - Opus (libopus): **1.5.2**
+- dav1d (libdav1d, fast AV1 software decoder): **1.5.1** (BSD; Windows + macOS)
+
+> **8.1 → 8.1.2** is a point release: the SONAMEs are unchanged
+> (`avcodec-62`, `avutil-60`, `avformat-62`, `avfilter-11`, `swscale-9`,
+> `swresample-6`, `avdevice-62`), so the DLL/dylib names are identical and the
+> swap is drop-in — **no consumer code or CMake change is required**.
+>
+> **dav1d** is added so web/YouTube **AV1** import decodes fast (FFmpeg's native
+> AV1 decoder is slow). It is pure BSD (no GPL) and is a new transitive runtime
+> dependency of avcodec. (libvpx is intentionally **not** added — native VP8/VP9
+> decode is already on par.) Both platforms in this tree are 8.1.2 + dav1d:
+> Windows ships it as `dav1d.dll`, macOS as `libdav1d.7.dylib` (resolved via
+> `@rpath`, like the other dylib dependencies).
 
 ## Platforms
 
@@ -24,20 +35,27 @@ Precompiled FFmpeg 8.1 libraries for ACE Studio.
 
 ### Toolchain
 
-Built with **MSVC** (cl.exe 19.44, Visual Studio 2022) via MSYS2 + `--toolchain=msvc`.
+Built with **MSVC** (cl.exe ≥ 19.44, Visual Studio 2022 or newer) via MSYS2 +
+`--toolchain=msvc`. Run every step below from an **x64 Native Tools Command
+Prompt** (or after `vcvars64.bat`).
 
-NASM 3.01 used for x86 assembly optimizations (SIMD/SSE/AVX).
+NASM (≥ 2.13 for FFmpeg, ≥ 2.14 for dav1d) used for x86 assembly optimizations
+(SIMD/SSE/AVX). dav1d's build system additionally needs **Python 3 + meson + ninja**.
 
-### Runtime Dependencies (verified with Dependencies.exe)
+In MSYS2, **rename/remove `/usr/bin/link.exe`** so MSVC's `link.exe` wins on `PATH`.
+
+### Runtime Dependencies (verified with `dumpbin /dependents` / Dependencies.exe)
 
 The produced DLLs depend **only** on:
 - Other FFmpeg DLLs (avutil-60.dll, swresample-6.dll, etc.)
+- `dav1d.dll` (AV1 software decoder, BSD) — imported by `avcodec-62.dll`
 - `libmp3lame.dll` (LAME MP3 encoder, LGPL)
 - `opus.dll` (Opus audio codec, BSD)
 - Windows system DLLs: `KERNEL32.dll`, `ole32.dll`, `USER32.dll`, `mfplat.dll` (Media Foundation)
 - MSVC runtime: `VCRUNTIME140.dll`, `api-ms-win-crt-*.dll` (Universal CRT)
 
-**No** extra clang/gcc runtime dependencies. Pure MSVC ABI.
+**No** extra clang/gcc runtime dependencies (dav1d is pure BSD, no extra runtime).
+Pure MSVC ABI.
 
 ### Configure Flags (Windows)
 
@@ -60,9 +78,49 @@ The produced DLLs depend **only** on:
   --enable-dxva2 \
   --enable-d3d11va \
   --enable-mediafoundation \
-  --extra-cflags='-MD -O2 -DHAVE_UNISTD_H=0 -I<lame_include_path> -I<opus_install_dir>/include' \
-  --extra-ldflags='-LIBPATH:<lame_lib_path> -LIBPATH:<opus_install_dir>/lib'
+  --enable-libdav1d \
+  --extra-cflags='-MD -O2 -DHAVE_UNISTD_H=0 -I<lame_include_path> -I<opus_install_dir>/include -I<dav1d_install_dir>/include' \
+  --extra-ldflags='-LIBPATH:<lame_lib_path> -LIBPATH:<opus_install_dir>/lib -LIBPATH:<dav1d_install_dir>/lib'
 ```
+
+FFmpeg finds dav1d and opus through **pkg-config**, so point `PKG_CONFIG_PATH` at
+their `.pc` directories before configuring (libmp3lame is detected by a plain
+header/lib check via the `-I`/`-LIBPATH` above, not pkg-config):
+
+```bash
+export PKG_CONFIG_PATH="<dav1d_install_dir>/lib/pkgconfig:<opus_pkgconfig_dir>:$PKG_CONFIG_PATH"
+```
+
+Confirm the configure summary lists **`libdav1d`** under "External libraries" and
+that the version is **8.1.2** (`config.h`: `CONFIG_LIBDAV1D 1`,
+`CONFIG_LIBDAV1D_DECODER 1`). After `make`, `dumpbin /dependents avcodec-62.dll`
+must list **`dav1d.dll`**, and `avcodec_configuration()` must contain
+`--enable-libdav1d`.
+
+### dav1d Build (Windows)
+
+dav1d 1.5.1 built shared with MSVC (from an x64 Native Tools prompt, NASM on `PATH`):
+
+```bat
+git clone https://code.videolan.org/videolan/dav1d.git
+cd dav1d
+git checkout 1.5.1
+meson setup build ^
+  --buildtype release ^
+  --default-library shared ^
+  -Denable_tools=false ^
+  -Denable_tests=false ^
+  --prefix "<dav1d_install_dir>"
+ninja -C build
+ninja -C build install
+```
+
+This produces `bin/dav1d.dll` (the runtime DLL — bundled next to the FFmpeg DLLs),
+`lib/dav1d.lib` (MSVC import lib, needed only at FFmpeg link time),
+`include/dav1d/*.h`, and `lib/pkgconfig/dav1d.pc` (how FFmpeg finds it). meson's
+MSVC output already names the import lib `dav1d.lib` (not `libdav1d.lib`), which is
+what FFmpeg's `-ldav1d` → `dav1d.lib` mapping expects. FFmpeg 8.1.2 requires
+`dav1d >= 1.0.0` (1.5.1 satisfies it).
 
 ### Patches Applied
 
@@ -109,13 +167,33 @@ This produces `opus.dll` + `opus.lib`. Copy both to `ffmpeg/lib/win/`.
 - MSYS2's `/usr/bin/link.exe` must be renamed/removed to avoid conflict with MSVC's `link.exe`
 - `-DHAVE_UNISTD_H=0` prevents configure from detecting MSYS2's unistd.h as Windows-native
 
+### Windows Debug Build
+
+Debug DLLs (`ffmpeg/lib/win/debug/`) are built with the **same flags as
+release**, except `--disable-debug` is replaced by
+`--enable-debug --disable-stripping`. FFmpeg's `--enable-debug` automatically
+maps `-g` → MSVC `-Z7` (CodeView debug info) for the compiler, appends `/debug`
+to the linker, and adds `-g` to NASM — so do **not** add `-Zi`/`-DEBUG`
+yourself (that would conflict). `-O2` is still kept (required).
+
+dav1d, Opus and LAME are likewise rebuilt with debug info + `-O2`:
+- **dav1d**: `meson setup --buildtype debugoptimized -Db_vscrt=md` (O2 + debug info, `/MD`).
+- **Opus**: CMake `-DCMAKE_BUILD_TYPE=RelWithDebInfo` (`/O2 /Zi /MD`).
+- **LAME**: the `Makefile.MSVC` `Win64` profile already compiles `/Zi /O2`; copy
+  `configMS.h` → `config.h` first, then link the DLL with `/DEBUG /LTCG` to emit
+  `libmp3lame.pdb`.
+
+The FFmpeg debug DLLs are unstripped (symbols inline), so — matching the
+release layout's third-party deps — only `libmp3lame.pdb` is shipped alongside.
+
 ## macOS Build
 
 ### Toolchain
 
 Built with **Apple clang 21.0** (Xcode). Deployment target: **macOS 13.0** (`-mmacosx-version-min=13.0`).
 
-NASM 3.01 used for x86_64 assembly optimizations.
+NASM 3.01 used for x86_64 assembly optimizations. dav1d's build system
+additionally requires **Python 3 + meson + ninja**.
 
 ### Runtime Dependencies
 
@@ -123,6 +201,7 @@ The produced dylibs depend **only** on:
 - Other FFmpeg dylibs (via `@rpath`)
 - `libmp3lame.0.dylib` (LAME MP3 encoder, LGPL, via `@rpath`)
 - `libopus.0.dylib` (Opus audio codec, BSD, via `@rpath`)
+- `libdav1d.7.dylib` (dav1d AV1 decoder, BSD, via `@rpath`)
 - System frameworks: AudioToolbox, VideoToolbox, CoreFoundation, CoreMedia, CoreVideo, CoreServices
 - System libs: libSystem.B.dylib, libiconv.2.dylib, libz.1.dylib, libbz2.1.0.dylib
 
@@ -146,6 +225,7 @@ All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
   --enable-audiotoolbox \
   --enable-libmp3lame \
   --enable-libopus \
+  --enable-libdav1d \
   --disable-xlib \
   --disable-libxcb \
   --disable-libxcb-shm \
@@ -177,6 +257,7 @@ All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
   --enable-audiotoolbox \
   --enable-libmp3lame \
   --enable-libopus \
+  --enable-libdav1d \
   --disable-xlib \
   --disable-libxcb \
   --disable-libxcb-shm \
@@ -187,6 +268,56 @@ All dylib install names use `@rpath/lib<name>.<SOVERSION>.dylib` pattern.
   --extra-ldflags="-mmacosx-version-min=13.0 -L<lame_lib_path> -L<opus_install_dir>/lib -arch x86_64" \
   --install-name-dir='@rpath'
 ```
+
+### dav1d Build (macOS)
+
+dav1d 1.5.1 built shared with meson/ninja, per architecture. FFmpeg locates it
+through **pkg-config**, so point `PKG_CONFIG_PATH` at dav1d's `.pc` before the
+FFmpeg `./configure` (`export PKG_CONFIG_PATH="<dav1d_install_dir>/lib/pkgconfig"`).
+
+arm64 (native):
+```bash
+meson setup build <dav1d_src> \
+  --prefix=<install_dir> --libdir=lib --buildtype=release \
+  --default-library=shared -Denable_tools=false -Denable_tests=false \
+  -Dc_args=-mmacosx-version-min=13.0 -Dc_link_args=-mmacosx-version-min=13.0
+meson compile -C build && meson install -C build
+```
+
+x86_64 (cross-compiled from arm64) uses a meson cross file pinning the arch +
+deployment target and `nasm` for SIMD:
+```ini
+# dav1d-cross-x86_64.txt
+[binaries]
+c = ['clang', '-arch', 'x86_64']
+cpp = ['clang++', '-arch', 'x86_64']
+ar = 'ar'
+strip = 'strip'
+nasm = 'nasm'
+[built-in options]
+c_args = ['-mmacosx-version-min=13.0']
+c_link_args = ['-mmacosx-version-min=13.0', '-arch', 'x86_64']
+[host_machine]
+system = 'darwin'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
+```
+```bash
+meson setup build <dav1d_src> --prefix=<install_dir> --libdir=lib \
+  --buildtype=release --default-library=shared \
+  -Denable_tools=false -Denable_tests=false --cross-file dav1d-cross-x86_64.txt
+meson compile -C build && meson install -C build
+```
+
+meson stamps the install path as the dylib id, so fix it to `@rpath` (mirrors
+the lame/opus fixups). Because this runs **before** the FFmpeg build, FFmpeg then
+records `@rpath/libdav1d.7.dylib` automatically:
+```bash
+install_name_tool -id "@rpath/libdav1d.7.dylib" <install_dir>/lib/libdav1d.7.dylib
+```
+Confirm with `otool -L libavcodec.*.dylib | grep dav1d` → `@rpath/libdav1d.7.dylib`,
+and `avcodec_configuration()` (or `strings` on libavutil) contains `--enable-libdav1d`.
 
 ### LAME Build (macOS)
 
@@ -258,7 +389,8 @@ Debug dylibs are built with the same flags as release, plus:
 
 FFmpeg still uses `-O2` (required — dead-code elimination patterns in FFmpeg source cause linker errors without optimization).
 
-LAME and Opus are also rebuilt with `-g -O2` in CFLAGS for consistent debug symbols.
+dav1d (meson `--buildtype debugoptimized` → `-O2` + debug info), LAME and Opus
+are also rebuilt with debug info + `-O2` for consistent symbols.
 
 Output is placed in `ffmpeg/lib/macos/{arm64,x86_64}/debug/`.
 
@@ -269,7 +401,7 @@ A convenience script `build_macos_debug.sh` automates the full build:
 ./build_macos_debug.sh x86_64   # build x86_64 only
 ```
 
-## DLL Version Numbers (FFmpeg 8.1)
+## DLL Version Numbers (FFmpeg 8.1.2)
 
 | Library | SONAME | DLL Name |
 |---------|--------|----------|
@@ -280,6 +412,8 @@ A convenience script `build_macos_debug.sh` automates the full build:
 | libavutil | 60 | avutil-60.dll |
 | libswresample | 6 | swresample-6.dll |
 | libswscale | 9 | swscale-9.dll |
+
+(SONAMEs unchanged from 8.1 — 8.1.2 is a drop-in point release.)
 
 **Note:** `libpostproc` is not included as it requires GPL license.
 
