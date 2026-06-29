@@ -167,6 +167,25 @@ This produces `opus.dll` + `opus.lib`. Copy both to `ffmpeg/lib/win/`.
 - MSYS2's `/usr/bin/link.exe` must be renamed/removed to avoid conflict with MSVC's `link.exe`
 - `-DHAVE_UNISTD_H=0` prevents configure from detecting MSYS2's unistd.h as Windows-native
 
+### Windows Debug Build
+
+Debug DLLs (`ffmpeg/lib/win/debug/`) are built with the **same flags as
+release**, except `--disable-debug` is replaced by
+`--enable-debug --disable-stripping`. FFmpeg's `--enable-debug` automatically
+maps `-g` → MSVC `-Z7` (CodeView debug info) for the compiler, appends `/debug`
+to the linker, and adds `-g` to NASM — so do **not** add `-Zi`/`-DEBUG`
+yourself (that would conflict). `-O2` is still kept (required).
+
+dav1d, Opus and LAME are likewise rebuilt with debug info + `-O2`:
+- **dav1d**: `meson setup --buildtype debugoptimized -Db_vscrt=md` (O2 + debug info, `/MD`).
+- **Opus**: CMake `-DCMAKE_BUILD_TYPE=RelWithDebInfo` (`/O2 /Zi /MD`).
+- **LAME**: the `Makefile.MSVC` `Win64` profile already compiles `/Zi /O2`; copy
+  `configMS.h` → `config.h` first, then link the DLL with `/DEBUG /LTCG` to emit
+  `libmp3lame.pdb`.
+
+The FFmpeg debug DLLs are unstripped (symbols inline), so — matching the
+release layout's third-party deps — only `libmp3lame.pdb` is shipped alongside.
+
 ## macOS Build
 
 ### Toolchain
