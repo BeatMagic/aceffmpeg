@@ -1,10 +1,15 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(aceffmpeg
-    VERSION 8.1.0
+    VERSION 8.1.2
     DESCRIPTION "Precompiled FFmpeg libraries for cross-platform development"
     LANGUAGES C CXX
 )
+
+# Note: dav1d.dll (fast AV1 software decoder) is a transitive runtime dependency
+# of avcodec on Windows. It is NOT a separate imported target -- it ships in the
+# same ffmpeg/lib/win/<config> directory as avcodec-*.dll, so the consumer's
+# post-link DLL copy step (which globs that directory) stages it automatically.
 
 # 设置包含目录
 set(FFMPEG_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/include")
